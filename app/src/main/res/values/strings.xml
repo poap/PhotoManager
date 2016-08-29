@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">PhotoManager</string>
+    <string name="story">스토리</string>
+    <string name="action_add">+ 추가</string>
 </resources>
