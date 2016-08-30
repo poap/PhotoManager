@@ -11,11 +11,13 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
+import com.google.gson.Gson;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -29,6 +31,7 @@ import se.emilsjolander.stickylistheaders.StickyListHeadersListView;
 public class MainActivity extends AppCompatActivity {
 
     private SimpleDateFormat format = new SimpleDateFormat("yyyy년 M월 d일 H시 m분", Locale.KOREA);
+    private SimpleDateFormat month = new SimpleDateFormat("M", Locale.KOREA);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +42,14 @@ public class MainActivity extends AppCompatActivity {
         StickyListHeadersListView storyListView = (StickyListHeadersListView) findViewById(R.id.list_story);
         StoryListAdapter adapter = new StoryListAdapter(this);
         storyListView.setAdapter(adapter);
+        storyListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                Intent intent = new Intent(MainActivity.this, StoryViewActivity.class);
+                intent.putExtra("data", ((StoryListElem) parent.getAdapter().getItem(position)).imagePath);
+                startActivity(intent);
+            }
+        });
     }
 
     @Override
@@ -74,11 +85,18 @@ public class MainActivity extends AppCompatActivity {
         public StoryListAdapter(Context context) {
             this.context = context;
             inflater = LayoutInflater.from(context);
-            elems = new ArrayList<StoryListElem>() {{
-                add(new StoryListElem("http://i.telegraph.co.uk/multimedia/archive/03589/Wellcome_Image_Awa_3589699k.jpg", "from google image1", new Date()));
-                add(new StoryListElem("http://www.qqxxzx.com/images/image/image-16.png", "from google image1", new Date()));
-                add(new StoryListElem("https://pixabay.com/static/uploads/photo/2015/10/01/21/39/background-image-967820_960_720.jpg", "from google image1", new Date()));
-            }};
+            try {
+                elems = new ArrayList<StoryListElem>() {{
+                    add(new StoryListElem("https://pixabay.com/static/uploads/photo/2015/10/01/21/39/background-image-967820_960_720.jpg", "from google image3", format.parse("2016년 6월 10일 13시 35분")));
+                    add(new StoryListElem("http://imguol.com/c/noticias/2013/12/13/13dez2013---esta-imagem-mostra-a-nebulosa-de-caranguejo-um-iconico-remanescente-de-supernova-na-nossa-galaxia-vista-do-observatorio-espacial-herschel-e-do-telescopio-hubble-uma-nuvem-de-gas-e-poeira-1386961235961_956x500.jpg", "from google image6", format.parse("2016년 6월 10일 13시 35분")));
+                    add(new StoryListElem("http://www.photonics.com/images/Web/Articles/2012/2/13/thumbnail_50102.jpg", "from google image4", format.parse("2016년 7월 10일 13시 35분")));
+                    add(new StoryListElem("http://i.telegraph.co.uk/multimedia/archive/03589/Wellcome_Image_Awa_3589699k.jpg", "from google image1", format.parse("2016년 7월 10일 13시 35분")));
+                    add(new StoryListElem("http://www.qqxxzx.com/images/image/image-16.png", "from google image2", format.parse("2016년 8월 10일 13시 35분")));
+                    add(new StoryListElem("http://www.spyderonlines.com/images/wallpapers/image/image-11.jpg", "from google image5", format.parse("2016년 8월 10일 13시 35분")));
+                }};
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
@@ -124,7 +142,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public long getHeaderId(int position) {
-            return position;
+            return Long.valueOf(month.format(elems.get(position).created));
         }
 
         @Override
