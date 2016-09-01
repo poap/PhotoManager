@@ -1,5 +1,6 @@
 package com.poap.photomanager;
 
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.support.v7.app.AppCompatActivity;
@@ -72,6 +73,14 @@ public class StoryViewActivity extends AppCompatActivity {
         memoView = (EditText) findViewById(R.id.story_memo);
         editMode = false;
 
+        View.OnClickListener fullSizeImage = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(StoryViewActivity.this, FullscreenImage.class);
+                intent.putExtra("path", (String) v.getTag());
+                startActivity(intent);
+            }
+        };
         StoryDB storyDB = new StoryDB(this);
         SQLiteDatabase rdb = storyDB.getReadableDatabase();
         Cursor cursor;
@@ -103,10 +112,13 @@ public class StoryViewActivity extends AppCompatActivity {
             int index = 0;
             while (cursor.moveToNext()) {
                 ImageView thumbnailView = (ImageView) getLayoutInflater().inflate(R.layout.story_thumbnail, imagesContainer, false);
+                String imagePath = cursor.getString(0);
                 Glide.with(this)
-                        .load(cursor.getString(0))
+                        .load(imagePath)
                         .centerCrop()
                         .into(thumbnailView);
+                thumbnailView.setTag(imagePath);
+                thumbnailView.setOnClickListener(fullSizeImage);
                 imagesContainer.addView(thumbnailView, index);
                 index += 1;
             }
@@ -130,6 +142,7 @@ public class StoryViewActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         //TODO: show confirm alert when user apply and cancel to edit story
+        //TODO: implement function for delete story
         switch (item.getItemId()) {
             case R.id.action_edit:
                 switchEditMode();

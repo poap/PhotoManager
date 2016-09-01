@@ -79,6 +79,8 @@ public class MainActivity extends AppCompatActivity {
         });
 
         setTitle(getString(R.string.story) + " (" + adapter.getCount() + ")");
+
+        //TODO: implement search function
     }
 
     @Override
