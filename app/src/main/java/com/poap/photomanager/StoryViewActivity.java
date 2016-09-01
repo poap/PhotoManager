@@ -1,10 +1,12 @@
 package com.poap.photomanager;
 
+import android.app.Dialog;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -21,7 +23,9 @@ import com.poap.photomanager.db.StoryDB;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -36,20 +40,27 @@ public class StoryViewActivity extends AppCompatActivity {
 
     private StoryDB storyDB;
     private long storyId;
+    private TextView descriptionView;
+    private List<String> imagePaths;
+    private List<String> newImagePaths;
+    private LinearLayout imagesContainer;
+    private View.OnClickListener fullSizeImage;
+    private View addImageView;
+    private Dialog addImageDialog;
+    private EditText titleView;
+    private EditText memoView;
+    private TextView editedView;
     private MenuItem actionEdit;
     private MenuItem actionApply;
     private MenuItem actionCancel;
-    private View addImageView;
-    private EditText titleView;
-    private EditText memoView;
+    private boolean editMode;
     private String titleText;
     private String memoText;
-    private boolean editMode;
 
     @Override
     public void onBackPressed() {
         if (editMode) {
-            editMode = false;
+            rollbackData();
             switchViewMode();
         } else {
             super.onBackPressed();
@@ -67,13 +78,11 @@ public class StoryViewActivity extends AppCompatActivity {
             supportFinishAfterTransition();
             return;
         }
-
-        addImageView = findViewById(R.id.add_image);
-        titleView = (EditText) findViewById(R.id.story_title);
-        memoView = (EditText) findViewById(R.id.story_memo);
-        editMode = false;
-
-        View.OnClickListener fullSizeImage = new View.OnClickListener() {
+        descriptionView = (TextView) findViewById(R.id.description);
+        imagePaths = new ArrayList<>();
+        newImagePaths = new ArrayList<>();
+        imagesContainer = (LinearLayout) findViewById(R.id.story_images);
+        fullSizeImage = new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(StoryViewActivity.this, FullscreenImage.class);
@@ -81,6 +90,40 @@ public class StoryViewActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         };
+
+        LinearLayout addImageDialogView = (LinearLayout) View.inflate(this, R.layout.dialog_image_path, null);
+        addImageView = findViewById(R.id.add_image);
+        addImageDialog = new AlertDialog.Builder(StoryViewActivity.this)
+                .setView(addImageDialogView)
+                .create();
+        addImageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                addImageDialog.show();
+            }
+        });
+        addImageDialogView.findViewById(R.id.action_cancel).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                addImageDialog.dismiss();
+            }
+        });
+        addImageDialogView.findViewById(R.id.action_apply).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String path = ((TextView) addImageDialog.findViewById(R.id.path)).getText().toString();
+                newImagePaths.add(path);
+                createImage(path);
+                updateDescription(imagePaths.size() + newImagePaths.size());
+                addImageDialog.dismiss();
+            }
+        });
+
+        titleView = (EditText) findViewById(R.id.story_title);
+        memoView = (EditText) findViewById(R.id.story_memo);
+        editedView = (TextView) findViewById(R.id.story_edited);
+        editMode = false;
+
         StoryDB storyDB = new StoryDB(this);
         SQLiteDatabase rdb = storyDB.getReadableDatabase();
         Cursor cursor;
@@ -105,25 +148,15 @@ public class StoryViewActivity extends AppCompatActivity {
         cursor.close();
 
         cursor = rdb.rawQuery("SELECT path FROM picture WHERE story = " + storyId, null);
-        {
-            LinearLayout imagesContainer = (LinearLayout) findViewById(R.id.story_images);
-            String description = cursor.getCount() + "장의 사진";
-            ((TextView) findViewById(R.id.description)).setText(description);
-            int index = 0;
-            while (cursor.moveToNext()) {
-                ImageView thumbnailView = (ImageView) getLayoutInflater().inflate(R.layout.story_thumbnail, imagesContainer, false);
-                String imagePath = cursor.getString(0);
-                Glide.with(this)
-                        .load(imagePath)
-                        .centerCrop()
-                        .into(thumbnailView);
-                thumbnailView.setTag(imagePath);
-                thumbnailView.setOnClickListener(fullSizeImage);
-                imagesContainer.addView(thumbnailView, index);
-                index += 1;
-            }
+        while (cursor.moveToNext()) {
+            imagePaths.add(cursor.getString(0));
         }
         cursor.close();
+
+        for (String path : imagePaths) {
+            createImage(path);
+        }
+        updateDescription(imagePaths.size());
     }
 
     @Override
@@ -160,6 +193,23 @@ public class StoryViewActivity extends AppCompatActivity {
         }
     }
 
+    private void updateDescription(int size) {
+        String description = size + "장의 사진";
+        descriptionView.setText(description);
+    }
+
+    private void createImage(String path) {
+        ImageView thumbnailView = (ImageView) getLayoutInflater().inflate(R.layout.story_thumbnail, imagesContainer, false);
+        Glide.with(this)
+                .load(path)
+                .centerCrop()
+                .error(R.mipmap.ic_launcher)
+                .into(thumbnailView);
+        thumbnailView.setTag(path);
+        thumbnailView.setOnClickListener(fullSizeImage);
+        imagesContainer.addView(thumbnailView, imagesContainer.getChildCount() - 1);
+    }
+
     private void updateData() {
         SQLiteDatabase wdb = storyDB.getWritableDatabase();
         Date now = new Date();
@@ -173,9 +223,18 @@ public class StoryViewActivity extends AppCompatActivity {
         cursor.moveToFirst();
         cursor.close();
 
+        for (String path : newImagePaths) {
+            cursor = wdb.rawQuery("INSERT INTO picture (path, story) VALUES ('" + path + "', '" + storyId + "')", null);
+            cursor.moveToFirst();
+            cursor.close();
+            imagePaths.add(path);
+        }
+        newImagePaths.clear();
+
         wdb.close();
         setTitle(titleText);
-        ((TextView) findViewById(R.id.story_edited)).setText(format.format(now));
+        updateDescription(imagePaths.size());
+        editedView.setText(format.format(now));
 
         setResult(RESULT_OK);
     }
@@ -183,6 +242,11 @@ public class StoryViewActivity extends AppCompatActivity {
     private void rollbackData() {
         titleView.setText(titleText);
         memoView.setText(memoText);
+        while (!newImagePaths.isEmpty()) {
+            imagesContainer.removeViewAt(imagePaths.size());
+            newImagePaths.remove(0);
+        }
+        updateDescription(imagePaths.size());
     }
 
     private void switchEditMode() {
@@ -196,7 +260,7 @@ public class StoryViewActivity extends AppCompatActivity {
         memoText = memoView.getText().toString();
         editMode = true;
 
-        //TODO: implement adding, removing image
+        //TODO: implement removing image
     }
 
     private void switchViewMode() {

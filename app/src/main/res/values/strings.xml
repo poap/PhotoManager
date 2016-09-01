@@ -9,4 +9,5 @@
     <string name="image">사진</string>
     <string name="hint_title">제목을 입력하세요</string>
     <string name="hint_memo">메모를 입력하세요</string>
+    <string name="hint_path">사진 URL을 입력하세요.</string>
 </resources>
