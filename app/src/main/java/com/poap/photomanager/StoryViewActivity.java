@@ -1,6 +1,7 @@
 package com.poap.photomanager;
 
 import android.app.Dialog;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -38,6 +39,7 @@ public class StoryViewActivity extends AppCompatActivity {
         setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
     }};
 
+    private boolean newStory;
     private StoryDB storyDB;
     private long storyId;
     private TextView descriptionView;
@@ -61,7 +63,6 @@ public class StoryViewActivity extends AppCompatActivity {
     public void onBackPressed() {
         if (editMode) {
             rollbackData();
-            switchViewMode();
         } else {
             super.onBackPressed();
         }
@@ -71,9 +72,10 @@ public class StoryViewActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_story_view);
+        newStory = getIntent().getBooleanExtra("new", false);
         storyDB = new StoryDB(this);
         storyId = getIntent().getLongExtra("storyId", -1);
-        if (storyId < 0) {
+        if (!newStory && storyId < 0) {
             Toast.makeText(StoryViewActivity.this, "존재하지 않는 스토리입니다.", Toast.LENGTH_SHORT).show();
             supportFinishAfterTransition();
             return;
@@ -124,37 +126,38 @@ public class StoryViewActivity extends AppCompatActivity {
         editedView = (TextView) findViewById(R.id.story_edited);
         editMode = false;
 
-        StoryDB storyDB = new StoryDB(this);
-        SQLiteDatabase rdb = storyDB.getReadableDatabase();
-        Cursor cursor;
+        if (!newStory) {
+            SQLiteDatabase rdb = storyDB.getReadableDatabase();
+            Cursor cursor;
 
-        cursor = rdb.rawQuery("SELECT title, memo, edited FROM story WHERE _id = " + storyId, null);
-        {
-            cursor.moveToNext();
-            String title = cursor.getString(0);
-            String memo = cursor.getString(1);
-            String edited = cursor.getString(2);
-            try {
-                edited = format.format(sqlDate.parse(edited));
-            } catch (ParseException pe) {
-                pe.printStackTrace();
-                edited = "수정된 시점을 찾을 수 없습니다";
+            cursor = rdb.rawQuery("SELECT title, memo, edited FROM story WHERE _id = " + storyId, null);
+            {
+                cursor.moveToNext();
+                String title = cursor.getString(0);
+                String memo = cursor.getString(1);
+                String edited = cursor.getString(2);
+                try {
+                    edited = format.format(sqlDate.parse(edited));
+                } catch (ParseException pe) {
+                    pe.printStackTrace();
+                    edited = "수정된 시점을 찾을 수 없습니다";
+                }
+                setTitle(title);
+                ((TextView) findViewById(R.id.story_title)).setText(title);
+                ((TextView) findViewById(R.id.story_memo)).setText(memo);
+                ((TextView) findViewById(R.id.story_edited)).setText(edited);
             }
-            setTitle(title);
-            ((TextView) findViewById(R.id.story_title)).setText(title);
-            ((TextView) findViewById(R.id.story_memo)).setText(memo);
-            ((TextView) findViewById(R.id.story_edited)).setText(edited);
-        }
-        cursor.close();
+            cursor.close();
 
-        cursor = rdb.rawQuery("SELECT path FROM picture WHERE story = " + storyId, null);
-        while (cursor.moveToNext()) {
-            imagePaths.add(cursor.getString(0));
-        }
-        cursor.close();
+            cursor = rdb.rawQuery("SELECT path FROM picture WHERE story = " + storyId, null);
+            while (cursor.moveToNext()) {
+                imagePaths.add(cursor.getString(0));
+            }
+            cursor.close();
 
-        for (String path : imagePaths) {
-            createImage(path);
+            for (String path : imagePaths) {
+                createImage(path);
+            }
         }
         updateDescription(imagePaths.size());
     }
@@ -167,7 +170,11 @@ public class StoryViewActivity extends AppCompatActivity {
         actionApply = menu.findItem(R.id.action_apply);
         actionCancel = menu.findItem(R.id.action_cancel);
 
-        switchViewMode();
+        if (newStory) {
+            switchEditMode();
+        } else {
+            switchViewMode();
+        }
 
         return super.onCreateOptionsMenu(menu);
     }
@@ -182,11 +189,9 @@ public class StoryViewActivity extends AppCompatActivity {
                 return true;
             case R.id.action_apply:
                 updateData();
-                switchViewMode();
                 return true;
             case R.id.action_cancel:
                 rollbackData();
-                switchViewMode();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -211,17 +216,41 @@ public class StoryViewActivity extends AppCompatActivity {
     }
 
     private void updateData() {
+        String title = titleView.getText().toString();
+        if (title.isEmpty()) {
+            Toast.makeText(StoryViewActivity.this, "제목을 입력해주세요.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (imagePaths.isEmpty() && newImagePaths.isEmpty()) {
+            Toast.makeText(StoryViewActivity.this, "한 장 이상의 사진을 추가해주세요.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        titleText = title;
+        memoText = memoView.getText().toString();
+
         SQLiteDatabase wdb = storyDB.getWritableDatabase();
         Date now = new Date();
         Cursor cursor;
 
-        titleText = titleView.getText().toString();
-        memoText = memoView.getText().toString();
+        if (newStory) {
+            ContentValues cv = new ContentValues();
+            cv.put("title", titleText);
+            cv.put("memo", memoText);
+            cv.put("edited", sqlDate.format(now));
+            storyId = wdb.insert("story", null, cv);
 
-        cursor = wdb.rawQuery("UPDATE story SET title = '" + titleText + "', memo = '" + memoText
-                + "', edited = '" + sqlDate.format(now) + "' WHERE _id = " + storyId, null);
-        cursor.moveToFirst();
-        cursor.close();
+            if (storyId < 0) {
+                Toast.makeText(StoryViewActivity.this, "스토리 생성에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            newStory = false;
+        } else {
+            cursor = wdb.rawQuery("UPDATE story SET title = '" + titleText + "', memo = '" + memoText
+                    + "', edited = '" + sqlDate.format(now) + "' WHERE _id = " + storyId, null);
+            cursor.moveToFirst();
+            cursor.close();
+        }
 
         for (String path : newImagePaths) {
             cursor = wdb.rawQuery("INSERT INTO picture (path, story) VALUES ('" + path + "', '" + storyId + "')", null);
@@ -237,16 +266,22 @@ public class StoryViewActivity extends AppCompatActivity {
         editedView.setText(format.format(now));
 
         setResult(RESULT_OK);
+        switchViewMode();
     }
 
     private void rollbackData() {
-        titleView.setText(titleText);
-        memoView.setText(memoText);
-        while (!newImagePaths.isEmpty()) {
-            imagesContainer.removeViewAt(imagePaths.size());
-            newImagePaths.remove(0);
+        if (newStory) {
+            supportFinishAfterTransition();
+        } else {
+            titleView.setText(titleText);
+            memoView.setText(memoText);
+            while (!newImagePaths.isEmpty()) {
+                imagesContainer.removeViewAt(imagePaths.size());
+                newImagePaths.remove(0);
+            }
+            updateDescription(imagePaths.size());
+            switchViewMode();
         }
-        updateDescription(imagePaths.size());
     }
 
     private void switchEditMode() {

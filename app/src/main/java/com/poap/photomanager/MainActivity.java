@@ -95,15 +95,13 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.action_add:
-                createStory();
+                Intent intent = new Intent(MainActivity.this, StoryViewActivity.class);
+                intent.putExtra("new", true);
+                startActivityForResult(intent, REQUEST_STORY_VIEW);
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
-    }
-
-    private void createStory() {
-        //TODO: create story with image url
     }
 
     public class StoryListAdapter extends BaseAdapter implements StickyListHeadersAdapter {
@@ -156,6 +154,7 @@ public class MainActivity extends AppCompatActivity {
             Glide.with(context)
                     .load(item.imagePath.get(0))
                     .centerCrop()
+                    .error(R.mipmap.ic_launcher)
                     .into(holder.thumbnail);
             holder.title.setText(item.title);
             holder.edited.setText(format.format(item.edited));
