@@ -34,27 +34,30 @@ import se.emilsjolander.stickylistheaders.StickyListHeadersListView;
 
 public class MainActivity extends AppCompatActivity {
 
-    private SimpleDateFormat format = new SimpleDateFormat("yyyy년 M월 d일 H시 m분", Locale.KOREA);
-    private SimpleDateFormat sqlDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA);
-    private SimpleDateFormat month = new SimpleDateFormat("M", Locale.KOREA);
+    private static final SimpleDateFormat format = new SimpleDateFormat("yyyy년 M월 d일 H시 m분", Locale.KOREA);
+    private static final SimpleDateFormat sqlDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA);
+    private static final SimpleDateFormat month = new SimpleDateFormat("M", Locale.KOREA);
+
+    private StoryListAdapter adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        setTitle(getString(R.string.story));
 
+        adapter = new StoryListAdapter(this);
         StickyListHeadersListView storyListView = (StickyListHeadersListView) findViewById(R.id.list_story);
-        StoryListAdapter adapter = new StoryListAdapter(this);
         storyListView.setAdapter(adapter);
         storyListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Intent intent = new Intent(MainActivity.this, StoryViewActivity.class);
-//                intent.putExtra("data", "");
+                intent.putExtra("storyId", adapter.getItemId(position));
                 startActivity(intent);
             }
         });
+
+        setTitle(getString(R.string.story) + " (" + adapter.getCount() + ")");
     }
 
     @Override
@@ -94,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
             pos = new ArrayList<>();
 
             StoryDB storyDB = new StoryDB(context);
-            SQLiteDatabase rdb = storyDB.getWritableDatabase();
+            SQLiteDatabase rdb = storyDB.getReadableDatabase();
             Cursor cursor;
 
             cursor = rdb.rawQuery("SELECT _id, title, memo, edited FROM story", null);
@@ -122,11 +125,11 @@ public class MainActivity extends AppCompatActivity {
             cursor = rdb.rawQuery("SELECT _id, path, story FROM picture", null);
             {
                 String path;
-                long storyID;
+                long storyId;
                 while (cursor.moveToNext()) {
                     path = cursor.getString(1);
-                    storyID = cursor.getLong(2);
-                    stories.get(storyID).imagePath.add(path);
+                    storyId = cursor.getLong(2);
+                    stories.get(storyId).imagePath.add(path);
                 }
             }
             cursor.close();

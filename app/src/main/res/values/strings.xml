@@ -2,5 +2,6 @@
     <string name="app_name">PhotoManager</string>
     <string name="story">스토리</string>
     <string name="action_add">+ 추가</string>
+    <string name="action_edit">편집</string>
     <string name="thumbnail">썸네일</string>
 </resources>
