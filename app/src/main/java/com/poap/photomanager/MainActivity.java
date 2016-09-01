@@ -28,24 +28,45 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 
 import se.emilsjolander.stickylistheaders.StickyListHeadersAdapter;
 import se.emilsjolander.stickylistheaders.StickyListHeadersListView;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final SimpleDateFormat format = new SimpleDateFormat("yyyy년 M월 d일 H시 m분", Locale.KOREA);
-    private static final SimpleDateFormat sqlDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA);
-    private static final SimpleDateFormat month = new SimpleDateFormat("M", Locale.KOREA);
+    private static final SimpleDateFormat format = new SimpleDateFormat("yyyy년 M월 d일 H시 m분", Locale.KOREA) {{
+        setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
+    }};
+    private static final SimpleDateFormat sqlDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA) {{
+        setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
+    }};
+    private static final SimpleDateFormat month = new SimpleDateFormat("yyyyMM", Locale.KOREA) {{
+        setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
+    }};
+    private static final int REQUEST_STORY_VIEW = 1;
 
+    private StoryDB storyDB;
     private StoryListAdapter adapter;
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_STORY_VIEW) {
+            if (resultCode == RESULT_OK) {
+                adapter.reload();
+                adapter.notifyDataSetChanged();
+            }
+        }
+        super.onActivityResult(requestCode, resultCode, data);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        storyDB = new StoryDB(this);
         adapter = new StoryListAdapter(this);
+
         StickyListHeadersListView storyListView = (StickyListHeadersListView) findViewById(R.id.list_story);
         storyListView.setAdapter(adapter);
         storyListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -53,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Intent intent = new Intent(MainActivity.this, StoryViewActivity.class);
                 intent.putExtra("storyId", adapter.getItemId(position));
-                startActivity(intent);
+                startActivityForResult(intent, REQUEST_STORY_VIEW);
             }
         });
 
@@ -96,47 +117,7 @@ public class MainActivity extends AppCompatActivity {
             stories = new HashMap<>();
             pos = new ArrayList<>();
 
-            StoryDB storyDB = new StoryDB(context);
-            SQLiteDatabase rdb = storyDB.getReadableDatabase();
-            Cursor cursor;
-
-            cursor = rdb.rawQuery("SELECT _id, title, memo, edited FROM story", null);
-            {
-                Date edited;
-                long id;
-                String title;
-                while (cursor.moveToNext()) {
-                    id = cursor.getLong(0);
-                    title = cursor.getString(1);
-
-                    edited = new Date(0);
-                    try {
-                        edited = sqlDate.parse(cursor.getString(3));
-                    } catch (ParseException pe) {
-                        pe.printStackTrace();
-                    }
-
-                    stories.put(id, new StoryListElem(title, edited));
-                    pos.add(id);
-                }
-            }
-            cursor.close();
-
-            cursor = rdb.rawQuery("SELECT _id, path, story FROM picture", null);
-            {
-                String path;
-                long storyId;
-                while (cursor.moveToNext()) {
-                    path = cursor.getString(1);
-                    storyId = cursor.getLong(2);
-                    stories.get(storyId).imagePath.add(path);
-                }
-            }
-            cursor.close();
-
-            rdb.close();
-
-//            deleteDatabase("Story.db");
+            reload();
         }
 
         @Override
@@ -198,9 +179,58 @@ public class MainActivity extends AppCompatActivity {
                 holder = (HeaderViewHolder) convertView.getTag();
             }
 
-            holder.textView.setText(String.valueOf(getHeaderId(position)));
+            long y = getHeaderId(position);
+            long m = y % 100;
+            y = y / 100;
+            String headerLabel = y + "년 " + m + "월";
+            holder.textView.setText(headerLabel);
+            //TODO: show number of stories in each group
 
             return convertView;
+        }
+
+        public void reload() {
+            SQLiteDatabase rdb = storyDB.getReadableDatabase();
+            Cursor cursor;
+
+            stories.clear();
+            pos.clear();
+
+            cursor = rdb.rawQuery("SELECT _id, title, memo, edited FROM story ORDER BY edited desc", null);
+            {
+                Date edited;
+                long id;
+                String title;
+                while (cursor.moveToNext()) {
+                    id = cursor.getLong(0);
+                    title = cursor.getString(1);
+
+                    edited = new Date(0);
+                    try {
+                        edited = sqlDate.parse(cursor.getString(3));
+                    } catch (ParseException pe) {
+                        pe.printStackTrace();
+                    }
+
+                    stories.put(id, new StoryListElem(title, edited));
+                    pos.add(id);
+                }
+            }
+            cursor.close();
+
+            cursor = rdb.rawQuery("SELECT _id, path, story FROM picture", null);
+            {
+                String path;
+                long storyId;
+                while (cursor.moveToNext()) {
+                    path = cursor.getString(1);
+                    storyId = cursor.getLong(2);
+                    stories.get(storyId).imagePath.add(path);
+                }
+            }
+            cursor.close();
+
+            rdb.close();
         }
 
         private class HeaderViewHolder {

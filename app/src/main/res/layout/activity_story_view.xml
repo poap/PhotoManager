@@ -32,13 +32,14 @@
 
             <TextView
                 android:id="@+id/add_image"
-                android:layout_width="80dp"
+                android:layout_width="120dp"
                 android:layout_height="match_parent"
                 android:layout_marginLeft="12dp"
                 android:layout_marginRight="12dp"
                 android:background="#eeeeee"
                 android:gravity="center"
-                android:text="@string/action_add" />
+                android:text="@string/action_add"
+                android:visibility="gone" />
 
         </LinearLayout>
 
@@ -57,25 +58,34 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
             android:orientation="vertical"
             android:paddingBottom="@dimen/activity_vertical_margin"
             android:paddingLeft="@dimen/activity_horizontal_margin"
             android:paddingRight="@dimen/activity_horizontal_margin"
             android:paddingTop="@dimen/activity_vertical_margin">
 
-            <TextView
+            <EditText
                 android:id="@+id/story_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
-                android:maxLines="1"
+                android:background="@null"
+                android:enabled="false"
+                android:hint="@string/hint_title"
+                android:maxLength="80"
+                android:singleLine="true"
                 android:textSize="18sp" />
 
-            <TextView
+            <EditText
                 android:id="@+id/story_memo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
+                android:background="@null"
+                android:enabled="false"
+                android:hint="@string/hint_memo"
                 android:textSize="15sp" />
 
             <TextView

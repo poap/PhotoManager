@@ -3,5 +3,9 @@
     <string name="story">스토리</string>
     <string name="action_add">+ 추가</string>
     <string name="action_edit">편집</string>
+    <string name="action_apply">확인</string>
+    <string name="action_cancel">취소</string>
     <string name="thumbnail">썸네일</string>
+    <string name="hint_title">제목을 입력하세요</string>
+    <string name="hint_memo">메모를 입력하세요</string>
 </resources>
