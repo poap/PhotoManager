@@ -1,5 +1,9 @@
 # PhotoManager
 
+##Difference with first specification
+- This application get images by entering image URL, instead of taking picture from device camera.
+- This application don't have search function yet.
+
 ##Using Libraries
 - [StickyListHeaders](https://github.com/emilsjolander/StickyListHeaders)
 - [Glide](https://github.com/bumptech/glide)
